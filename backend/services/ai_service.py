@@ -1,29 +1,16 @@
 import os
 import json
+import re
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
-SYSTEM_PROMPT = """You are SOIN AI, an expert software engineer assistant. When a user asks you to create files or code, you MUST respond ONLY with valid JSON in this exact format:
+SYSTEM_PROMPT = """You are SOIN AI, an expert software engineer assistant. When a user asks you to create files or code, respond ONLY with valid JSON in this exact format — no text before or after:
 
-{
-  "fileTree": {
-    "filename1.js": "file content here",
-    "filename2.json": "file content here",
-    "folder/file.css": "file content here"
-  },
-  "buildCommand": "npm install",
-  "startCommand": "npm start"
-}
+{"fileTree":{"filename.js":"file content here","package.json":"{\\"name\\":\\"app\\"}"},"buildCommand":"npm install","startCommand":"node filename.js"}
 
 Rules:
-1. ONLY return JSON, no markdown code blocks, no explanations before or after
-2. fileTree keys are file paths (use / for folders)
-3. fileTree values are the complete file contents as strings
-4. buildCommand is the command to install dependencies
-5. startCommand is the command to run the project
-6. For general questions not about creating files, respond normally but keep it concise
-
-Example valid response:
-{"fileTree":{"app.js":"console.log('hello');","package.json":"{\\"name\\":\\"test\\"}"}, "buildCommand":"npm install", "startCommand":"node app.js"}
+1. Return ONLY the JSON object — no markdown, no explanations, no prefix text
+2. fileTree keys are file paths, values are complete file contents as strings
+3. For general questions not about creating files, respond normally in plain text
 """
 
 async def get_ai_response(message: str, session_id: str) -> str:
@@ -34,7 +21,7 @@ async def get_ai_response(message: str, session_id: str) -> str:
         
         chat = LlmChat(
             api_key=api_key,
-            session_id=session_id,
+            session_id=f"soin_{session_id}",
             system_message=SYSTEM_PROMPT
         )
         chat.with_model("gemini", "gemini-3-flash-preview")
@@ -47,22 +34,53 @@ async def get_ai_response(message: str, session_id: str) -> str:
         return f"Error: {str(e)}"
 
 def parse_ai_response(response: str) -> dict:
-    """Try to extract JSON from AI response"""
+    """Robustly extract JSON from AI response, handling prefixes, code blocks, etc."""
+    if not response or not isinstance(response, str):
+        return {"message": str(response)}
+    
+    text = response.strip()
+    
+    # 1. Try direct JSON parse
     try:
-        # Try direct JSON parse
-        return json.loads(response)
-    except:
-        # Try to extract JSON from markdown code blocks
-        if "```json" in response:
-            start = response.find("```json") + 7
-            end = response.find("```", start)
-            json_str = response[start:end].strip()
-            return json.loads(json_str)
-        elif "```" in response:
-            start = response.find("```") + 3
-            end = response.find("```", start)
-            json_str = response[start:end].strip()
-            return json.loads(json_str)
-        else:
-            # Response is not JSON, return as plain message
-            return {"message": response}
+        result = json.loads(text)
+        if isinstance(result, dict):
+            return result
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    # 2. Extract from ```json ... ``` blocks
+    json_block = re.search(r'```(?:json)?\s*\n?([\s\S]*?)\n?```', text)
+    if json_block:
+        try:
+            result = json.loads(json_block.group(1).strip())
+            if isinstance(result, dict):
+                return result
+        except (json.JSONDecodeError, TypeError):
+            pass
+    
+    # 3. Find the first { ... } block (greedy match for outermost braces)
+    brace_start = text.find('{')
+    if brace_start != -1:
+        # Find matching closing brace
+        depth = 0
+        brace_end = -1
+        for i in range(brace_start, len(text)):
+            if text[i] == '{':
+                depth += 1
+            elif text[i] == '}':
+                depth -= 1
+                if depth == 0:
+                    brace_end = i
+                    break
+        
+        if brace_end > brace_start:
+            json_str = text[brace_start:brace_end + 1]
+            try:
+                result = json.loads(json_str)
+                if isinstance(result, dict):
+                    return result
+            except (json.JSONDecodeError, TypeError):
+                pass
+    
+    # 4. Not JSON — return as plain message
+    return {"message": text}

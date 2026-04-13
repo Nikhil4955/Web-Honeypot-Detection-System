@@ -10,10 +10,14 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import socketio
 import logging
+from datetime import datetime, timezone
+from bson import ObjectId
 from routes.auth_routes import create_auth_router
 from routes.project_routes import create_project_router
 from services.auth_service import seed_admin
 from services.ai_service import get_ai_response, parse_ai_response
+from utils.auth_utils import get_current_user
+from fastapi import Request
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -24,8 +28,8 @@ db = client[os.environ['DB_NAME']]
 sio = socketio.AsyncServer(
     async_mode='asgi',
     cors_allowed_origins='*',
-    logger=True,
-    engineio_logger=True
+    logger=False,
+    engineio_logger=False
 )
 
 # Create FastAPI app
@@ -60,6 +64,38 @@ app.include_router(project_router, prefix="/api")
 async def health():
     return {"status": "ok"}
 
+# Chat history endpoint
+@app.get("/api/projects/{project_id}/messages")
+async def get_project_messages(project_id: str, request: Request):
+    user = await get_current_user(request, db)
+    # Verify user is in project
+    try:
+        project = await db.projects.find_one({"_id": ObjectId(project_id)})
+        if not project or user["_id"] not in project.get("users", []):
+            return []
+    except Exception:
+        return []
+    
+    messages = await db.messages.find(
+        {"project_id": project_id},
+        {"_id": 0}
+    ).sort("created_at", 1).to_list(500)
+    return messages
+
+
+# Helper: save message to MongoDB
+async def save_message(project_id, message, user_info, msg_type, timestamp=None):
+    msg_doc = {
+        "project_id": project_id,
+        "message": message,
+        "user": user_info,
+        "type": msg_type,
+        "timestamp": timestamp or datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.messages.insert_one(msg_doc)
+
+
 # Socket.IO event handlers
 @sio.event
 async def connect(sid, environ):
@@ -89,15 +125,19 @@ async def chat_message(sid, data):
     project_id = data.get('projectId')
     message = data.get('message')
     user = data.get('user')
+    timestamp = data.get('timestamp', datetime.now(timezone.utc).isoformat())
     
     if project_id and message and user:
-        # Broadcast to all users in the project room
-        await sio.emit('new_message', {
+        msg_payload = {
             'message': message,
             'user': user,
-            'timestamp': data.get('timestamp'),
+            'timestamp': timestamp,
             'type': 'user'
-        }, room=project_id)
+        }
+        # Save to MongoDB
+        await save_message(project_id, message, user, 'user', timestamp)
+        # Broadcast to all users in the project room
+        await sio.emit('new_message', msg_payload, room=project_id)
 
 @sio.event
 async def ai_message(sid, data):
@@ -105,18 +145,23 @@ async def ai_message(sid, data):
     project_id = data.get('projectId')
     message = data.get('message')
     user = data.get('user')
+    timestamp = data.get('timestamp', datetime.now(timezone.utc).isoformat())
     
     if project_id and message and user:
-        # Echo user message
-        await sio.emit('new_message', {
+        # Save & broadcast user message
+        user_msg = {
             'message': message,
             'user': user,
-            'timestamp': data.get('timestamp'),
+            'timestamp': timestamp,
             'type': 'user'
-        }, room=project_id)
+        }
+        await save_message(project_id, message, user, 'user', timestamp)
+        await sio.emit('new_message', user_msg, room=project_id)
         
         # Get AI response
         ai_response = await get_ai_response(message, project_id)
+        ai_user = {'name': 'SOIN AI', 'email': 'ai@soin.dev'}
+        ai_timestamp = datetime.now(timezone.utc).isoformat()
         
         # Try to parse as JSON for file generation
         try:
@@ -127,31 +172,45 @@ async def ai_message(sid, data):
                     'fileTree': parsed['fileTree'],
                     'buildCommand': parsed.get('buildCommand', ''),
                     'startCommand': parsed.get('startCommand', ''),
-                    'timestamp': data.get('timestamp')
+                    'timestamp': ai_timestamp
                 }, room=project_id)
                 
-                # Send confirmation message
+                # Save file tree to project
+                try:
+                    await db.projects.update_one(
+                        {"_id": ObjectId(project_id)},
+                        {"$set": {"fileTree": parsed['fileTree'], "updated_at": ai_timestamp}}
+                    )
+                except Exception:
+                    pass
+                
+                # Send and save confirmation message
                 file_count = len(parsed['fileTree'])
+                confirm_msg = f"I've created {file_count} file(s) for you. Check the file tree on the right!"
+                await save_message(project_id, confirm_msg, ai_user, 'ai', ai_timestamp)
                 await sio.emit('new_message', {
-                    'message': f"I've created {file_count} file(s) for you. Check the file tree on the right!",
-                    'user': {'name': 'SOIN AI', 'email': 'ai@soin.dev'},
-                    'timestamp': data.get('timestamp'),
+                    'message': confirm_msg,
+                    'user': ai_user,
+                    'timestamp': ai_timestamp,
                     'type': 'ai'
                 }, room=project_id)
             else:
                 # Regular AI response
+                ai_text = parsed.get('message', ai_response)
+                await save_message(project_id, ai_text, ai_user, 'ai', ai_timestamp)
                 await sio.emit('new_message', {
-                    'message': parsed.get('message', ai_response),
-                    'user': {'name': 'SOIN AI', 'email': 'ai@soin.dev'},
-                    'timestamp': data.get('timestamp'),
+                    'message': ai_text,
+                    'user': ai_user,
+                    'timestamp': ai_timestamp,
                     'type': 'ai'
                 }, room=project_id)
         except Exception as e:
-            # Send error message
+            err_msg = f"Error processing AI request: {str(e)}"
+            await save_message(project_id, err_msg, ai_user, 'ai', ai_timestamp)
             await sio.emit('new_message', {
-                'message': f"Error processing AI request: {str(e)}",
-                'user': {'name': 'SOIN AI', 'email': 'ai@soin.dev'},
-                'timestamp': data.get('timestamp'),
+                'message': err_msg,
+                'user': ai_user,
+                'timestamp': ai_timestamp,
                 'type': 'ai'
             }, room=project_id)
 
@@ -163,7 +222,6 @@ async def file_update(sid, data):
     content = data.get('content')
     
     if project_id and file_path is not None:
-        # Broadcast file update to all users in the project
         await sio.emit('file_updated', {
             'filePath': file_path,
             'content': content
@@ -172,13 +230,10 @@ async def file_update(sid, data):
 # Startup event
 @app.on_event("startup")
 async def startup_event():
-    # Create indexes
     await db.users.create_index("email", unique=True)
     await db.login_attempts.create_index("identifier")
-    
-    # Seed admin
+    await db.messages.create_index([("project_id", 1), ("created_at", 1)])
     await seed_admin(db)
-    
     logging.info("Application started successfully")
 
 # Shutdown event
