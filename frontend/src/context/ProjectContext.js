@@ -14,13 +14,26 @@ export const useProject = () => {
   return context;
 };
 
+// Shared API instance with credentials
+const api = axios.create({
+  baseURL: `${API_URL}/api`,
+  withCredentials: true
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('soin_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const ProjectProvider = ({ children }) => {
   const [projects, setProjects] = useState([]);
   const [currentProject, setCurrentProject] = useState(null);
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    // Initialize socket connection
     const newSocket = io(API_URL, {
       transports: ['websocket', 'polling']
     });
@@ -32,84 +45,35 @@ export const ProjectProvider = ({ children }) => {
   }, []);
 
   const fetchProjects = async () => {
-    try {
-      const { data } = await axios.get(`${API_URL}/api/projects`, {
-        withCredentials: true
-      });
-      setProjects(data);
-      return data;
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      throw error;
-    }
+    const { data } = await api.get('/projects');
+    setProjects(data);
+    return data;
   };
 
   const createProject = async (name) => {
-    try {
-      const { data } = await axios.post(
-        `${API_URL}/api/projects`,
-        { name },
-        { withCredentials: true }
-      );
-      setProjects([...projects, data]);
-      return data;
-    } catch (error) {
-      console.error('Error creating project:', error);
-      throw error;
-    }
+    const { data } = await api.post('/projects', { name });
+    setProjects((prev) => [...prev, data]);
+    return data;
   };
 
   const fetchProject = async (projectId) => {
-    try {
-      const { data } = await axios.get(`${API_URL}/api/projects/${projectId}`, {
-        withCredentials: true
-      });
-      setCurrentProject(data);
-      return data;
-    } catch (error) {
-      console.error('Error fetching project:', error);
-      throw error;
-    }
+    const { data } = await api.get(`/projects/${projectId}`);
+    setCurrentProject(data);
+    return data;
   };
 
   const updateFileTree = async (projectId, fileTree) => {
-    try {
-      await axios.put(
-        `${API_URL}/api/projects/${projectId}/filetree`,
-        { fileTree },
-        { withCredentials: true }
-      );
-    } catch (error) {
-      console.error('Error updating file tree:', error);
-      throw error;
-    }
+    await api.put(`/projects/${projectId}/filetree`, { fileTree });
   };
 
   const addCollaborator = async (projectId, email) => {
-    try {
-      const { data } = await axios.post(
-        `${API_URL}/api/projects/${projectId}/collaborators`,
-        { email },
-        { withCredentials: true }
-      );
-      return data;
-    } catch (error) {
-      console.error('Error adding collaborator:', error);
-      throw error;
-    }
+    const { data } = await api.post(`/projects/${projectId}/collaborators`, { email });
+    return data;
   };
 
   const fetchCollaborators = async (projectId) => {
-    try {
-      const { data } = await axios.get(
-        `${API_URL}/api/projects/${projectId}/collaborators`,
-        { withCredentials: true }
-      );
-      return data;
-    } catch (error) {
-      console.error('Error fetching collaborators:', error);
-      throw error;
-    }
+    const { data } = await api.get(`/projects/${projectId}/collaborators`);
+    return data;
   };
 
   return (

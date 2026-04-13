@@ -35,10 +35,15 @@ app = FastAPI()
 socket_app = socketio.ASGIApp(sio, app)
 
 # CORS middleware
+frontend_url = os.environ.get('FRONTEND_URL', 'https://ai-dev-workspace-7.preview.emergentagent.com')
+cors_origins = os.environ.get('CORS_ORIGINS', '*').split(',')
+if frontend_url not in cors_origins:
+    cors_origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

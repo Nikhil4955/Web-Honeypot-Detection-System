@@ -13,6 +13,21 @@ export const useUser = () => {
   return context;
 };
 
+// Create axios instance with interceptors
+const api = axios.create({
+  baseURL: `${API_URL}/api`,
+  withCredentials: true
+});
+
+// Add token from localStorage as fallback
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('soin_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,9 +38,7 @@ export const UserProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const { data } = await axios.get(`${API_URL}/api/auth/me`, {
-        withCredentials: true
-      });
+      const { data } = await api.get('/auth/me');
       setUser(data);
     } catch (error) {
       setUser(false);
@@ -35,32 +48,36 @@ export const UserProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const { data } = await axios.post(
-      `${API_URL}/api/auth/login`,
-      { email, password },
-      { withCredentials: true }
-    );
+    const { data } = await api.post('/auth/login', { email, password });
+    // Store token in response headers or extract from data
+    if (data.token) {
+      localStorage.setItem('soin_token', data.token);
+    }
     setUser(data);
     return data;
   };
 
   const register = async (email, password, name) => {
-    const { data } = await axios.post(
-      `${API_URL}/api/auth/register`,
-      { email, password, name },
-      { withCredentials: true }
-    );
+    const { data } = await api.post('/auth/register', { email, password, name });
+    if (data.token) {
+      localStorage.setItem('soin_token', data.token);
+    }
     setUser(data);
     return data;
   };
 
   const logout = async () => {
-    await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true });
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      // ignore
+    }
+    localStorage.removeItem('soin_token');
     setUser(false);
   };
 
   return (
-    <UserContext.Provider value={{ user, loading, login, register, logout, checkAuth }}>
+    <UserContext.Provider value={{ user, loading, login, register, logout, checkAuth, api }}>
       {children}
     </UserContext.Provider>
   );

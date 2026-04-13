@@ -11,30 +11,33 @@ JWT_ALGORITHM = "HS256"
 def create_auth_router(db):
     router = APIRouter(prefix="/auth", tags=["auth"])
 
-    @router.post("/register")
-    async def register(user_data: UserCreate, request: Request, response: Response):
-        user = await register_user(db, user_data.email, user_data.password, user_data.name or "User")
-        access_token = create_access_token(user["_id"], user["email"])
-        refresh_token = create_refresh_token(user["_id"])
-        
+    def _set_auth_cookies(response: Response, access_token: str, refresh_token: str):
         response.set_cookie(
             key="access_token",
             value=access_token,
             httponly=True,
-            secure=False,
-            samesite="lax",
-            max_age=900,
+            secure=True,
+            samesite="none",
+            max_age=86400,
             path="/"
         )
         response.set_cookie(
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=False,
-            samesite="lax",
+            secure=True,
+            samesite="none",
             max_age=604800,
             path="/"
         )
+
+    @router.post("/register")
+    async def register(user_data: UserCreate, request: Request, response: Response):
+        user = await register_user(db, user_data.email, user_data.password, user_data.name or "User")
+        access_token = create_access_token(user["_id"], user["email"])
+        refresh_token = create_refresh_token(user["_id"])
+        _set_auth_cookies(response, access_token, refresh_token)
+        user["token"] = access_token
         return user
 
     @router.post("/login")
@@ -43,25 +46,8 @@ def create_auth_router(db):
         user = await login_user(db, credentials.email, credentials.password, ip)
         access_token = create_access_token(user["_id"], user["email"])
         refresh_token = create_refresh_token(user["_id"])
-        
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            secure=False,
-            samesite="lax",
-            max_age=900,
-            path="/"
-        )
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=False,
-            samesite="lax",
-            max_age=604800,
-            path="/"
-        )
+        _set_auth_cookies(response, access_token, refresh_token)
+        user["token"] = access_token
         return user
 
     @router.post("/logout")
@@ -94,9 +80,9 @@ def create_auth_router(db):
                 key="access_token",
                 value=access_token,
                 httponly=True,
-                secure=False,
-                samesite="lax",
-                max_age=900,
+                secure=True,
+                samesite="none",
+                max_age=86400,
                 path="/"
             )
             return {"message": "Token refreshed"}
