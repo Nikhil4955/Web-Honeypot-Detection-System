@@ -35,6 +35,7 @@ export const ProjectProvider = ({ children }) => {
 
   useEffect(() => {
     const newSocket = io(API_URL, {
+      path: '/api/socket.io',
       transports: ['websocket', 'polling']
     });
     setSocket(newSocket);

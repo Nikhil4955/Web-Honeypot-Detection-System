@@ -31,8 +31,8 @@ sio = socketio.AsyncServer(
 # Create FastAPI app
 app = FastAPI()
 
-# Create Socket.IO ASGI app
-socket_app = socketio.ASGIApp(sio, app)
+# Create Socket.IO ASGI app - use /api/socket.io path for Kubernetes routing
+socket_app = socketio.ASGIApp(sio, app, socketio_path='/api/socket.io')
 
 # CORS middleware
 frontend_url = os.environ.get('FRONTEND_URL', 'https://ai-dev-workspace-7.preview.emergentagent.com')
