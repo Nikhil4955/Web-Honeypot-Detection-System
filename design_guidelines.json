@@ -1,0 +1,118 @@
+{
+  "theme": "dark",
+  "archetype": "Archetype 4: Swiss & High-Contrast (Retro-Terminal IDE Variant)",
+  "typography": {
+    "headings": "JetBrains Mono, monospace",
+    "body": "IBM Plex Sans, sans-serif",
+    "code": "JetBrains Mono, monospace",
+    "rules": [
+      "Absolutely no Inter, Roboto, or standard sans for headings. Use JetBrains Mono for a pure developer tool aesthetic.",
+      "Headings (H1/H2) must have tracking-tight spacing.",
+      "Code areas and file tree must use JetBrains Mono.",
+      "Overlines, tiny labels, and badges must be uppercase with wide tracking (tracking-widest)."
+    ]
+  },
+  "colors": {
+    "background": "#09090b",
+    "surface": "#18181b",
+    "surface_hover": "#27272a",
+    "border": "#27272a",
+    "text_primary": "#fafafa",
+    "text_secondary": "#a1a1aa",
+    "accent_primary": "#f97316",
+    "accent_hover": "#ea580c",
+    "ai_trigger_bg": "rgba(234, 179, 8, 0.15)",
+    "ai_trigger_text": "#eab308",
+    "run_button": "#10b981",
+    "rules": [
+      "Do not use default Vercel or Stripe aesthetics.",
+      "No purple or teal for CTAs.",
+      "Gradients are forbidden in the workspace; use solid colors and 1px crisp borders.",
+      "Tinted greys must be zinc (slight cool undertone)."
+    ]
+  },
+  "layout": {
+    "spacing_scale": "Use p-2, p-4 for the workspace density. Use generous p-8, p-12 for the Login and Dashboard cards.",
+    "workspace_grid": "Flexbox or CSS Grid creating a full height viewport calc(100vh - 56px). 3 columns: Left Sidebar (w-1/4, min-w-[250px]), Center Pane (flex-1), Right Sidebar (w-1/5, min-w-[200px]).",
+    "borders": "Expose the skeleton. Use border-collapse style with 1px solid border-zinc-800 between columns and panels."
+  },
+  "components": {
+    "login_screen": {
+      "style": "High-impact Glassmorphism card overlaying the abstract background. Backdrop blur xl, bg-black/60, 1px border-white/10.",
+      "inputs": "Shadcn components heavily customized: sharp corners (rounded-sm), text-white, border-zinc-700, focus ring is vibrant orange.",
+      "cta": "bg-orange-500 hover:bg-orange-600 text-white rounded-sm w-full py-2 font-mono uppercase tracking-wide"
+    },
+    "project_dashboard": {
+      "style": "Bento-style or neat grid. Flat cards with 1px border-zinc-800, no shadow. Hover: slight lift (-translate-y-1) with a vibrant orange border.",
+      "new_project_btn": "Distinctive button with + icon, maybe dashed border or solid orange depending on hierarchy."
+    },
+    "workspace_header": {
+      "container": "h-14 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between px-4 z-10",
+      "address_bar": "bg-zinc-900 border border-zinc-800 text-sm text-zinc-400 px-4 py-1.5 rounded w-[400px] text-center font-mono focus-within:ring-1 focus-within:ring-orange-500",
+      "run_btn": "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-4 py-1.5 rounded hover:bg-emerald-500/20 font-mono text-sm transition-colors"
+    },
+    "chat_panel_left": {
+      "container": "h-full border-r border-zinc-800 bg-zinc-950 flex flex-col",
+      "messages_area": "flex-1 overflow-y-auto p-4 space-y-4",
+      "user_message": "bg-zinc-800 text-zinc-100 p-3 rounded-md ml-8 text-sm",
+      "ai_message": "border border-zinc-800 bg-zinc-900/50 p-3 rounded-md mr-8 text-sm relative",
+      "input_area": "p-4 border-t border-zinc-800 bg-zinc-950",
+      "ai_trigger": "text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded-sm font-mono text-xs"
+    },
+    "code_editor_center": {
+      "container": "h-full flex flex-col bg-[#0d0d0f]",
+      "tabs_bar": "flex border-b border-zinc-800 bg-zinc-950 overflow-x-auto overflow-y-hidden",
+      "tab": "px-4 py-2 text-sm font-mono border-r border-zinc-800 flex items-center gap-2 cursor-pointer",
+      "tab_active": "text-orange-500 bg-[#0d0d0f] border-t-2 border-t-orange-500",
+      "tab_inactive": "text-zinc-500 hover:text-zinc-300",
+      "gutter": "text-right pr-4 text-zinc-600 font-mono w-12 border-r border-zinc-800/50 pt-4 text-sm"
+    },
+    "file_tree_right": {
+      "container": "h-full border-l border-zinc-800 bg-zinc-950 p-4 overflow-y-auto",
+      "file_item": "flex items-center gap-2 text-sm text-zinc-400 font-mono py-1 px-2 rounded-sm cursor-pointer hover:bg-zinc-800/50 hover:text-zinc-200",
+      "file_item_active": "text-orange-500 bg-orange-500/10"
+    },
+    "collaborators_panel": {
+      "style": "Floating panel anchored top-right. bg-zinc-900 border border-zinc-800 shadow-2xl rounded-md p-4 w-72 mt-2",
+      "member_item": "flex items-center gap-3 py-2 border-b border-zinc-800/50 last:border-0",
+      "avatar": "w-8 h-8 rounded-full border border-zinc-700 object-cover"
+    }
+  },
+  "motion": {
+    "hover_states": "Crisp and immediate. transition-colors duration-150.",
+    "panels": "Use minimal layout animations. Avoid heavy bouncy springs in IDE; prioritize functional speed.",
+    "modals": "Fade-in and subtle scale-up (0.95 to 1)."
+  },
+  "assets": {
+    "icons_library": "@phosphor-icons/react",
+    "images": {
+      "login_background": {
+        "url": "https://images.pexels.com/photos/3612932/pexels-photo-3612932.jpeg",
+        "category": "background",
+        "description": "Abstract dark geometric pattern for the authentication screen background."
+      },
+      "user_avatar_1": {
+        "url": "https://images.unsplash.com/photo-1585581924908-1a6e1b2c6f9b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwzfHxkZXZlbG9wZXIlMjBwb3J0cmFpdCUyMGZhY2V8ZW58MHx8fHwxNzc2MTAwNDIyfDA&ixlib=rb-4.1.0&q=85",
+        "category": "avatar",
+        "description": "Collaborator avatar profile photo."
+      },
+      "user_avatar_2": {
+        "url": "https://images.unsplash.com/photo-1752738372136-2602aaafdcb7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwyfHxkZXZlbG9wZXIlMjBwb3J0cmFpdCUyMGZhY2V8ZW58MHx8fHwxNzc2MTAwNDIyfDA&ixlib=rb-4.1.0&q=85",
+        "category": "avatar",
+        "description": "Current user avatar profile photo."
+      }
+    }
+  },
+  "accessibility": {
+    "contrast": "Ensure text over surface maintains > 4.5:1 ratio. Utilize zinc-400 for secondary info, zinc-50 for primary.",
+    "focus": "All focusable elements must implement focus:outline-none focus:ring-2 focus:ring-orange-500",
+    "test_ids": "Mandatory data-testid attributes for all interactive elements (e.g., data-testid='login-submit', data-testid='chat-input', data-testid='run-button', data-testid='file-tree-item')"
+  },
+  "instructions_to_main_agent": [
+    "Build the UI in React using JS. Provide raw Tailwind strings.",
+    "Integrate Phosphor Icons as instructed.",
+    "The workspace should NOT be responsive on mobile. It is a desktop-first IDE layout. Enforce min-widths.",
+    "Strictly place File Tree on the RIGHT, and Chat on the LEFT, as explicitly requested by the user.",
+    "Utilize the images explicitly declared under the 'assets' key. DO NOT use placeholders like via.placeholder.com."
+  ]
+}
